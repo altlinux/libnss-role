@@ -4,6 +4,8 @@
 #define LIBROLE_START_LINESIZE		200 /* start buffer size for /etc/role line */
 #define LIBROLE_MAX_NAME		    100 /* max user/group name length */
 
+#define LIBROLE_ERROR_OPENING_DIRECTORY	158
+#define LIBROLE_ERROR_PATH_TOO_LONG	157
 #define LIBROLE_NO_SUCH_GROUP		156
 #define LIBROLE_OUT_OF_RANGE		155
 #define LIBROLE_MEMORY_ERROR		154
