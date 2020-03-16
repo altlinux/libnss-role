@@ -47,14 +47,14 @@ libenv = env.Clone()
 libenv["SHLIBSUFFIX"] = [NSS_LIBFULLSUFFIX]
 libenv["LIBS"] = ['pam', 'pam_misc']
 libenv["LINKFLAGS"] = ['-Wl,-soname,' + NSS_SONAME]
-so = libenv.SharedLibrary(NSS_NAME, ['nss_role.c', common, parser, locking, pamcheck])
+so = libenv.SharedLibrary(NSS_NAME, ['nss_role.c', common, parser, locking, pamcheck, 'src/fileop.c'])
 solink = libenv.Command(NSS_SONAME, so[0], 'ln -sf %s %s' % (NSS_FULLNAME, NSS_SONAME))
 
 commonenv = env.Clone()
 commonenv["SHLIBSUFFIX"] = [COMMON_LIBFULLSUFFIX]
 commonenv["LIBS"] = ['pam', 'pam_misc']
 commonenv["LINKFLAGS"] = ['-Wl,-soname,' + COMMON_SONAME]
-common = commonenv.SharedLibrary(COMMON_NAME, [common, parser, locking, pamcheck, 'graph.c'])
+common = commonenv.SharedLibrary(COMMON_NAME, [common, parser, locking, pamcheck, 'graph.c', 'src/fileop.c'])
 commonlink = commonenv.Command(COMMON_SONAME, common[0], 'ln -sf %s %s' % (COMMON_FULLNAME, COMMON_SONAME))
 commondevlink = commonenv.Command(COMMON_DEVNAME, common[0], 'ln -sf %s %s' % (COMMON_FULLNAME, COMMON_DEVNAME))
 commonheaders = Glob('include/role/*.h')
@@ -65,7 +65,7 @@ utilenv["LIBPATH"] = '.'
 
 roleadd = utilenv.Program('roleadd', 'roleadd.c')
 roledel = utilenv.Program('roledel', 'roledel.c')
-rolelst = utilenv.Program('rolelst', 'rolelst.c')
+rolelst = utilenv.Program('rolelst', ['rolelst.c', 'src/fileop.c'])
 test_role = utilenv.Program('test_role', 'test_role.c')
 
 commonenv.Install('$DESTDIR/$LIBDIR/', common)
