@@ -29,6 +29,17 @@ int librole_graph_add(struct librole_graph *G, struct librole_ver v)
 
 int librole_ver_add(struct librole_ver *v, gid_t g)
 {
+    int privilege_index = 0;
+    int result = LIBROLE_OK;
+
+    result = librole_ver_find_gid(v, g, &privilege_index);
+    /* GID 'g' for this role is already added */
+    if (LIBROLE_OK == result) {
+        goto librole_ver_add_end;
+    }
+
+    /* This code will be executed on LIBROLE_NO_SUCH_GROUP from
+     * librole_ver_find_gid or on any other result */
     if (v->size == v->capacity) {
         v->capacity <<= 1;
         v->list = (gid_t *) realloc(v->list, sizeof(gid_t) * v->capacity);
@@ -36,6 +47,8 @@ int librole_ver_add(struct librole_ver *v, gid_t g)
             return LIBROLE_MEMORY_ERROR;
     }
     v->list[v->size++] = g;
+
+librole_ver_add_end:
     return LIBROLE_OK;
 }
 
@@ -190,14 +203,16 @@ static int parse_line(char *line, struct librole_graph *G)
     unsigned long len = strlen(line);
     unsigned long i = 0;
     char *last = line;
-    struct librole_ver role = {0, 0, 0, 10};
+    struct librole_ver default_role = {0, 0, 0, 10};
+    struct librole_ver * role = &default_role;
     int comment = 0;
+    int role_exists = 0;
 
     /* skip blank line */
     if (!len)
         return LIBROLE_OK;
 
-    result = librole_ver_init(&role);
+    result = librole_ver_init(role);
     if (result != LIBROLE_OK)
         return result;
 
@@ -207,9 +222,18 @@ static int parse_line(char *line, struct librole_graph *G)
         goto libnss_role_parse_line_error;
 
     drop_quotes(&last);
-    result = librole_get_gid(last, &role.gid);
+    result = librole_get_gid(last, &role->gid);
     if (result != LIBROLE_OK)
         goto libnss_role_parse_line_error;
+
+    int gid_index;
+    result = librole_find_gid(G, role->gid, &gid_index);
+    /* Use existing role if found */
+    if (LIBROLE_OK == result) {
+        free(role->list);
+        role = &G->gr[gid_index];
+        role_exists = 1;
+    }
 
     while (!comment) {
         if (i >= len)
@@ -226,21 +250,33 @@ static int parse_line(char *line, struct librole_graph *G)
         if (result != LIBROLE_OK)
             goto libnss_role_parse_line_error;
 
-        result = librole_ver_add(&role, gr);
+        result = librole_ver_add(role, gr);
         if (result != LIBROLE_OK)
             goto libnss_role_parse_line_error;
     }
 
-    result = librole_graph_add(G, role);
-    if (result != LIBROLE_OK)
-        goto libnss_role_parse_line_error;
+    if (0 == role_exists) {
+        result = librole_graph_add(G, *role);
+        if (result != LIBROLE_OK) {
+            goto libnss_role_parse_line_error;
+        }
+    }
     return result;
 
 libnss_role_parse_line_error:
-    free(role.list);
+    free(role->list);
     return result;
 }
 
+/*
+ * \brief /etc/role file parser.
+ *
+ * \param[in] s path to file to read.
+ * \param[in] G Role graph.
+ *
+ * \return
+ *  - Status code
+ */
 int librole_reading(const char *s, struct librole_graph *G)
 {
     int result = LIBROLE_OK;
