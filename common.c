@@ -18,6 +18,8 @@
 static int errno_to_result(int err)
 {
     switch (err) {
+        case ENOENT:
+            return ENOENT;
         case ERANGE:
             return LIBROLE_OUT_OF_RANGE;
         case EMFILE:
@@ -300,6 +302,9 @@ void librole_print_error(int result)
             break;
         case LIBROLE_OK:
             errtext = "No error";
+            break;
+        default:
+            errtext = strerror(result);
             break;
     }
     fprintf(stderr, "Error %d: %s\n", result, errtext);
