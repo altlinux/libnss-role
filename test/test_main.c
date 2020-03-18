@@ -13,14 +13,19 @@
 
 #include "role/parser.h"
 
+static void test_drop_quotes(void **state) {
+    (void) state;
+    char *test_line = "\"role_name\"";
+    drop_quotes(&test_line);
+    printf("%s\n", test_line);
+}
+
 static void test_main(void **state) {
     (void) state;
     struct librole_graph G;
 
     assert_int_equal(librole_graph_init(&G), LIBROLE_OK);
     assert_int_equal(librole_reading("test/role.source", &G), LIBROLE_OK);
-    assert_int_equal(librole_writing("/dev/stdout", &G, 0), LIBROLE_OK);
-    assert_int_equal(librole_writing("/dev/stdout", &G, 1), LIBROLE_OK);
     assert_int_equal(librole_writing("/dev/stdout", &G, 0), LIBROLE_OK);
     assert_int_equal(librole_writing("/dev/stdout", &G, 1), LIBROLE_OK);
     assert_int_equal(librole_writing("test/role.test.new", &G, 0), LIBROLE_OK);
@@ -32,7 +37,8 @@ static void test_main(void **state) {
 
 int main(int argc, char **argv) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_main),
+        cmocka_unit_test(test_drop_quotes)
+        /*cmocka_unit_test(test_main)*/
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

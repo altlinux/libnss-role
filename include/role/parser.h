@@ -67,4 +67,7 @@ int librole_en_vector(void **buffer, size_t *capacity, size_t used, size_t elsiz
 
 int librole_create_ver_from_args(int argc, char **argv, int optind, struct librole_ver *new_role, int skip_flag);
 
+void drop_quotes(char **str);
+int parse_line(char *line, struct librole_graph *G);
+
 #endif
