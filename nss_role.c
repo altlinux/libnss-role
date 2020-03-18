@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "role/parser.h"
+#include "role/fileop.h"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -35,6 +36,12 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
             ret =  NSS_STATUS_NOTFOUND;
         } else
             ret = NSS_STATUS_UNAVAIL;
+        goto libnss_role_out;
+    }
+
+    result = librole_get_directory_files(LIBROLE_CONFIG_DIR, &G);
+    if (LIBROLE_OK != result) {
+        ret = NSS_STATUS_UNAVAIL;
         goto libnss_role_out;
     }
 
