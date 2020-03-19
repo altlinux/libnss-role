@@ -61,8 +61,7 @@ static int parse_options(int argc, char **argv, struct rolelst_settings *setting
 
 int main(int argc, char **argv) {
     struct rolelst_settings settings;
-    settings.numeric_flag = 0;
-    settings.verbose_mode = 0;
+    memset(&settings, 0, sizeof(settings));
     struct librole_graph G;
     int result;
 
