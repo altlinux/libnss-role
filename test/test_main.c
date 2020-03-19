@@ -5,6 +5,7 @@
 #include <cmocka.h>
 
 /* Test requirements */
+#include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <unistd.h>
@@ -15,9 +16,29 @@
 
 static void test_drop_quotes(void **state) {
     (void) state;
-    char *test_line = "\"role_name\"";
-    drop_quotes(&test_line);
-    printf("%s\n", test_line);
+
+    /* Create mutable memory area for test string */
+    char *immutable_line[] = { "\"role_name\"" };
+    size_t line_length = strlen(*immutable_line);
+    char *mutable_line;
+    mutable_line = calloc(sizeof(char), line_length + 1);
+    strncpy(mutable_line, *immutable_line, line_length);
+
+    assert_string_equal(mutable_line, "\"role_name\"");
+    drop_quotes(&mutable_line);
+    assert_string_equal(mutable_line, "role_name");
+}
+
+static void test_parse_line(void **state) {
+    struct librole_graph G;
+    assert_int_equal(librole_graph_init(&G), LIBROLE_OK);
+    char *immutable_line[] = { "users:\"tftp\",named" };
+    size_t line_length = strlen(*immutable_line);
+    char *mutable_line;
+    mutable_line = calloc(sizeof(char), line_length + 1);
+    strncpy(mutable_line, *immutable_line, line_length);
+
+    parse_line(mutable_line, &G);
 }
 
 static void test_main(void **state) {
@@ -37,7 +58,8 @@ static void test_main(void **state) {
 
 int main(int argc, char **argv) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_drop_quotes)
+          cmocka_unit_test(test_drop_quotes)
+        , cmocka_unit_test(test_parse_line)
         /*cmocka_unit_test(test_main)*/
     };
 
