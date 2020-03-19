@@ -207,6 +207,7 @@ static int parse_line(char *line, struct librole_graph *G)
     struct librole_ver * role = &default_role;
     int comment = 0;
     int role_exists = 0;
+    int gid_index = 0;
 
     /* skip blank line */
     if (!len)
@@ -226,7 +227,6 @@ static int parse_line(char *line, struct librole_graph *G)
     if (result != LIBROLE_OK)
         goto libnss_role_parse_line_error;
 
-    int gid_index;
     result = librole_find_gid(G, role->gid, &gid_index);
     /* Use existing role if found */
     if (LIBROLE_OK == result) {
