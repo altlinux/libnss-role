@@ -191,9 +191,9 @@ static int select_line_part(char *line, unsigned long len, char **last,
 void drop_quotes(char **str)
 {
     size_t len = strlen(*str);
-    if (*str[0] == '"' && *str[len-1] == '"') {
-        *str[len-1] = '\0';
-        *str++;
+    if ((*str)[0] == '"' && (*str)[len-1] == '"') {
+        str[0][len-1] = '\0';
+        (*str)++;
     }
 }
 
