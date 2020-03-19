@@ -188,11 +188,12 @@ static int select_line_part(char *line, unsigned long len, char **last,
     return rc;
 }
 
-void drop_quotes(char *str)
+void drop_quotes(char **str)
 {
-    size_t len = strlen(*str);
-    if (*str[0] == '"' && *str[len-1] == '"') {
-        *str[len-1] = '\0';
+    char *quote = *str;
+    size_t len = strlen(quote);
+    if (quote[0] == '"' && quote[len-1] == '"') {
+        quote[len-1] = '\0';
         *str++;
     }
 }
