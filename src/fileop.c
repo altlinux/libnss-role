@@ -125,12 +125,9 @@ int librole_get_directory_files(const char const *directory,
     int i = 0;
     for (i = 0; i < file_count; ++i)
     {
+        /* Don't do anything on errors and try to continue reading */
         retcode = librole_read_file_from_dir(
             directory, files[i]->d_name, role_graph);
-        if (LIBROLE_OK != retcode)
-        {
-            goto librole_get_directory_files_end;
-        }
     }
 
 librole_get_directory_files_end:
