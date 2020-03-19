@@ -4,4 +4,6 @@
 *.a
 *~
 .*
+build
+latex
 

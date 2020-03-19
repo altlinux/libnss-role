@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "role/parser.h"
+#include "role/fileop.h"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -17,9 +18,9 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
     enum nss_status ret = NSS_STATUS_SUCCESS;
     pthread_mutex_lock(&mutex);
 
-    struct librole_graph G = {};
+    struct librole_graph G = {0};
     int i, result;
-    librole_group_collector col = {}, ans = {};
+    librole_group_collector col = {0}, ans = {0};
 
     result = librole_graph_init(&G);
     if (result != LIBROLE_OK) {
@@ -37,6 +38,9 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
             ret = NSS_STATUS_UNAVAIL;
         goto libnss_role_out;
     }
+
+    /* Don't do anything on errors and try to continue operating */
+    result = librole_get_directory_files(LIBROLE_CONFIG_DIR, &G);
 
     result = librole_ver_init(&col);
     if (result != LIBROLE_OK) {
