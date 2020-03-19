@@ -5,7 +5,7 @@ set(C_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
-add_compile_options(-pedantic)
+add_compile_options(-pedantic -g3)
 
 option(ENABLE_TESTS "Enable unit tests for libnss-role" ON)
 
