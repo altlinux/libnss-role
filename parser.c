@@ -188,7 +188,7 @@ static int select_line_part(char *line, unsigned long len, char **last,
     return rc;
 }
 
-static void drop_quotes(char **str)
+void drop_quotes(char **str)
 {
     size_t len = strlen(*str);
     if (*str[0] == '"' && *str[len-1] == '"') {
@@ -197,7 +197,7 @@ static void drop_quotes(char **str)
     }
 }
 
-static int parse_line(char *line, struct librole_graph *G)
+int parse_line(char *line, struct librole_graph *G)
 {
     int result;
     unsigned long len = strlen(line);
