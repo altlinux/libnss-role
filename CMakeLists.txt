@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
-project(libnss-role VERSION 0.4.1 DESCRIPTION "NSS library to work with roles")
+project(libnss-role
+	LANGUAGES C
+	VERSION 0.4.1
+	DESCRIPTION "NSS library to work with roles")
 set(C_STANDARD 89)
 set(C_STANDARD_REQUIRED ON)
 
@@ -8,6 +11,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 add_compile_options(-pedantic -g3)
 
 option(ENABLE_TESTS "Enable unit tests for libnss-role" ON)
+option(NSS_LIBDIR "Destination directory for libnss_role" "/lib64")
+option(ROLE_LIBDIR "Destination directory for librole" "/usr/lib64")
 
 if(ENABLE_TESTS)
 	find_package(CMocka CONFIG REQUIRED)
@@ -60,3 +65,17 @@ add_executable(rolelst
 
 target_link_libraries(rolelst role pam pam_misc)
 
+install(TARGETS rolelst
+	RUNTIME DESTINATION bin)
+install(TARGETS roledel rolelst
+	RUNTIME DESTINATION sbin)
+install(TARGETS role
+	LIBRARY DESTINATION ${ROLE_LIBDIR})
+install(TARGETS nss_role
+	LIBRARY DESTINATION ${NSS_LIBDIR})
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/role
+	DESTINATION include/role
+	FILES_MATCHING PATTERN "*.h")
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role
+	DESTINATION /etc)
