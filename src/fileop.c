@@ -13,6 +13,8 @@
 #include "role/glob.h"
 #include "role/parser.h"
 
+#define MAX_PATH_LEN 4096
+
 /*
  * \brief Selector function for scandir which gets all regular files.
  *
@@ -62,6 +64,11 @@ static int librole_read_file_from_dir(const char const *directory,
     size_t dirlen = strlen(directory);
     size_t namelen = strlen(filename);
     size_t fullpathlen = dirlen + namelen + 1 + 1;
+
+    if (fullpathlen > MAX_PATH_LEN)
+    {
+        return ENAMETOOLONG;
+    }
     char fullpath[fullpathlen];
 
     /* Build full path to the file being read for roles */
