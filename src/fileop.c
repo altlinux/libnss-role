@@ -56,20 +56,13 @@ static int librole_read_file_from_dir(const char const *directory,
 
     if (NULL == directory || NULL == filename || NULL == role_graph)
     {
-        goto librole_read_file_from_dir_end;
+        return retcode;
     }
 
     size_t dirlen = strlen(directory);
     size_t namelen = strlen(filename);
     size_t fullpathlen = dirlen + namelen + 1 + 1;
-    char *fullpath = NULL;
-
-    fullpath = calloc(fullpathlen, sizeof(char));
-    if (NULL == fullpath || 0 != errno)
-    {
-        retcode = errno;
-        goto librole_read_file_from_dir_end;
-    }
+    char fullpath[fullpathlen];
 
     /* Build full path to the file being read for roles */
     strcpy(fullpath, directory);
@@ -80,9 +73,6 @@ static int librole_read_file_from_dir(const char const *directory,
      * (without /etc/role.d) behavior. */
     retcode = librole_reading(fullpath, role_graph);
 
-    free(fullpath);
-
-librole_read_file_from_dir_end:
     return retcode;
 }
 
