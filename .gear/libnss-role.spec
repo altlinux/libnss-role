@@ -5,19 +5,25 @@ Release: alt1
 Summary: NSS API library and admin tools for roles and privilegies
 
 License: LGPLv2.1
-URL: https://github.com/Etersoft/libnss-role
+URL: https://github.com/altlinux/libnss-role
 Group: System/Libraries
 
 Packager: Vitaly Lipatov <lav@altlinux.ru>
 
-# https://github.com/Etersoft/libnss-role.git
+# https://github.com/altlinux/libnss-role.git
 Source: %name-%version.tar
 
 Requires(pre): chrooted >= 0.3.5-alt1 chrooted-resolv sed
 Requires(postun): chrooted >= 0.3.5-alt1 sed
 
-BuildRequires: glibc-devel scons
-BuildRequires: libpam-devel
+BuildRequires: glibc-devel
+BuildRequires: cmake
+BuildRequires: libcmocka
+BuildRequires: libcmocka-devel
+BuildRequires: libpam0
+BuildRequires: libpam0-devel
+
+Requires: libpam0
 
 %description
 NSS API library and admin tools for roles and privilegies.
@@ -35,12 +41,22 @@ NSS API library for roles and privilegies.
 %setup
 
 %build
-scons
+mkdir build
+cd build
+cmake \
+	-DNSS_LIBDIR=/%_lib \
+	-DROLE_LIBDIR=%_libdir \
+	-DCMAKE_INSTALL_PREFIX=/usr \
+	..
+make
+
+%check
+cd build
+make test
 
 %install
-scons install DESTDIR=%buildroot LIBDIR=%_libdir LIBSYSDIR=/%_lib
-mkdir -p %buildroot%_sysconfdir
-install -m644 role.default %buildroot%_sysconfdir/role
+cd build
+make DESTDIR=%buildroot install
 
 %post
 if [ "$1" = "1" ]; then
