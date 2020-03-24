@@ -125,7 +125,9 @@ int librole_get_directory_files(const char const *directory,
         /* Don't do anything on errors and try to continue reading */
         retcode = librole_read_file_from_dir(
             directory, files[i]->d_name, role_graph);
+        free(files[i]);
     }
+    free(files);
 
 librole_get_directory_files_end:
     return retcode;
