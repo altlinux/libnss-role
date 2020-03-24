@@ -1,3 +1,7 @@
+%define _unpackaged_files_terminate_build 1
+# Suppress warning emerging from mentioning this macro in changelog
+%define _sysconfigdir /etc
+
 Name: libnss-role
 Version: 0.4.1
 Release: alt1
@@ -18,6 +22,7 @@ Requires(postun): chrooted >= 0.3.5-alt1 sed
 
 BuildRequires: glibc-devel
 BuildRequires: cmake
+BuildRequires: ctest
 BuildRequires: libcmocka
 BuildRequires: libcmocka-devel
 BuildRequires: libpam0
@@ -46,7 +51,8 @@ cd build
 cmake \
 	-DNSS_LIBDIR=/%_lib \
 	-DROLE_LIBDIR=%_libdir \
-	-DCMAKE_INSTALL_PREFIX=/usr \
+	-DMANDIR=%_man8dir \
+	-DCMAKE_INSTALL_PREFIX:PATH=/usr \
 	..
 make
 
@@ -78,10 +84,10 @@ update_chrooted all
 %files
 %config(noreplace) %_sysconfdir/role
 %_sysconfdir/pam.d/role*
-/%_lib/libnss_*.so.*
+/%_lib/libnss_*.so*
 %_sbindir/*
 %_bindir/*
-%_libdir/*.so.*
+%_libdir/*.so*
 %_man8dir/*
 
 %files devel
