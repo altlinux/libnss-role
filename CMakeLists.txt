@@ -70,7 +70,7 @@ add_library(nss_role SHARED
 target_link_libraries(nss_role pam pam_misc)
 
 set_target_properties(nss_role PROPERTIES
-	VERSION ${LIBROLE_VERSION}
+	VERSION ${LIBNSSROLE_VERSION}
 	SOVERSION ${LIBNSSROLE_SOVERSION})
 
 add_executable(roleadd
