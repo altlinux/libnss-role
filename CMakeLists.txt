@@ -13,6 +13,7 @@ add_compile_options(-pedantic -g3)
 option(ENABLE_TESTS "Enable unit tests for libnss-role" ON)
 option(NSS_LIBDIR "Destination directory for libnss_role" "/lib64")
 option(ROLE_LIBDIR "Destination directory for librole" "/usr/lib64")
+option(MANDIR "Manpage install directory" "/usr/share/man/man8")
 
 if(ENABLE_TESTS)
 	find_package(CMocka CONFIG REQUIRED)
@@ -29,6 +30,18 @@ set(NSS_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/parser.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/fileop.c)
 
+set(MANPAGES
+	${CMAKE_CURRENT_SOURCE_DIR}/doc/rolelst.8
+	${CMAKE_CURRENT_SOURCE_DIR}/doc/roleadd.8
+	${CMAKE_CURRENT_SOURCE_DIR}/doc/roledel.8)
+
+set(HEADERS
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/fileop.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/glob.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/lock_file.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/pam_check.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/parser.h)
+
 set(LIBROLE_VERSION 1.0.0)
 set(LIBNSSROLE_VERSION 2.0.0)
 
@@ -42,11 +55,15 @@ add_library(role SHARED
 	${CMAKE_CURRENT_SOURCE_DIR}/graph.c
 	${NSS_SOURCES})
 
+target_link_libraries(role pam pam_misc)
+
 set_target_properties(role PROPERTIES SOVERSION ${LIBROLE_VERSION})
 
 add_library(nss_role SHARED
 	${CMAKE_CURRENT_SOURCE_DIR}/nss_role.c
 	${NSS_SOURCES})
+
+target_link_libraries(nss_role pam pam_misc)
 
 set_target_properties(nss_role PROPERTIES SOVERSION ${LIBNSSROLE_VERSION})
 
@@ -74,8 +91,15 @@ install(TARGETS role
 install(TARGETS nss_role
 	LIBRARY DESTINATION ${NSS_LIBDIR})
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/role
-	DESTINATION include/role
-	FILES_MATCHING PATTERN "*.h")
+install(FILES ${HEADERS}
+	DESTINATION include/role)
+install(FILES ${MANPAGES}
+	DESTINATION ${MANDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role
 	DESTINATION /etc)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role.pamd
+	DESTINATION /etc/pam.d
+	RENAME roleadd)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role.pamd
+	DESTINATION /etc/pam.d
+	RENAME roledel)
