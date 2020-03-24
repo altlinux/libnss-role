@@ -43,7 +43,9 @@ set(HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/parser.h)
 
 set(LIBROLE_VERSION 1.0.0)
+set(LIBROLE_SOVERSION 1)
 set(LIBNSSROLE_VERSION 2.0.0)
+set(LIBNSSROLE_SOVERSION 2)
 
 configure_file(version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/role/version.h)
 
@@ -57,7 +59,9 @@ add_library(role SHARED
 
 target_link_libraries(role pam pam_misc)
 
-set_target_properties(role PROPERTIES SOVERSION ${LIBROLE_VERSION})
+set_target_properties(role PROPERTIES
+	VERSION ${LIBROLE_VERSION}
+	SOVERSION ${LIBROLE_SOVERSION})
 
 add_library(nss_role SHARED
 	${CMAKE_CURRENT_SOURCE_DIR}/nss_role.c
@@ -65,7 +69,9 @@ add_library(nss_role SHARED
 
 target_link_libraries(nss_role pam pam_misc)
 
-set_target_properties(nss_role PROPERTIES SOVERSION ${LIBNSSROLE_VERSION})
+set_target_properties(nss_role PROPERTIES
+	VERSION ${LIBROLE_VERSION}
+	SOVERSION ${LIBNSSROLE_SOVERSION})
 
 add_executable(roleadd
 	${CMAKE_CURRENT_SOURCE_DIR}/roleadd.c)
