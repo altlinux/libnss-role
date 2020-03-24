@@ -1,7 +1,3 @@
-%define _unpackaged_files_terminate_build 1
-# Suppress warning emerging from mentioning this macro in changelog
-%define _sysconfigdir /etc
-
 Name: libnss-role
 Version: 0.4.1
 Release: alt1
@@ -9,26 +5,19 @@ Release: alt1
 Summary: NSS API library and admin tools for roles and privilegies
 
 License: LGPLv2.1
-URL: https://github.com/altlinux/libnss-role
+URL: https://github.com/Etersoft/libnss-role
 Group: System/Libraries
 
 Packager: Vitaly Lipatov <lav@altlinux.ru>
 
-# https://github.com/altlinux/libnss-role.git
+# https://github.com/Etersoft/libnss-role.git
 Source: %name-%version.tar
 
 Requires(pre): chrooted >= 0.3.5-alt1 chrooted-resolv sed
 Requires(postun): chrooted >= 0.3.5-alt1 sed
 
-BuildRequires: glibc-devel
-BuildRequires: cmake
-BuildRequires: ctest
-BuildRequires: libcmocka
-BuildRequires: libcmocka-devel
-BuildRequires: libpam0
-BuildRequires: libpam0-devel
-
-Requires: libpam0
+BuildRequires: glibc-devel scons
+BuildRequires: libpam-devel
 
 %description
 NSS API library and admin tools for roles and privilegies.
@@ -46,23 +35,12 @@ NSS API library for roles and privilegies.
 %setup
 
 %build
-mkdir build
-cd build
-cmake \
-	-DNSS_LIBDIR=/%_lib \
-	-DROLE_LIBDIR=%_libdir \
-	-DMANDIR=%_man8dir \
-	-DCMAKE_INSTALL_PREFIX:PATH=/usr \
-	..
-make
-
-%check
-cd build
-make test
+scons
 
 %install
-cd build
-make DESTDIR=%buildroot install
+scons install DESTDIR=%buildroot LIBDIR=%_libdir LIBSYSDIR=/%_lib
+mkdir -p %buildroot%_sysconfdir
+install -m644 role.default %buildroot%_sysconfdir/role
 
 %post
 if [ "$1" = "1" ]; then
@@ -84,10 +62,10 @@ update_chrooted all
 %files
 %config(noreplace) %_sysconfdir/role
 %_sysconfdir/pam.d/role*
-/%_lib/libnss_*.so*
+/%_lib/libnss_*.so.*
 %_sbindir/*
 %_bindir/*
-%_libdir/*.so*
+%_libdir/*.so.*
 %_man8dir/*
 
 %files devel
