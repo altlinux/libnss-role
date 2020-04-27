@@ -18,6 +18,7 @@ Windows' "Restricted Groups".
 
 * **CMake 3.10+** for building
 * **cmocka** for unit testing
+* **Ragel 6.10+** for regeneration of `/etc/role` parser
 
 ## Build
 
