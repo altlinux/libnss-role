@@ -14,6 +14,14 @@ option(ENABLE_TESTS "Enable unit tests for libnss-role" ON)
 option(NSS_LIBDIR "Destination directory for libnss_role" "/lib64")
 option(ROLE_LIBDIR "Destination directory for librole" "/usr/lib64")
 option(MANDIR "Manpage install directory" "/usr/share/man/man8")
+option(RAGEL_REGEN_SRC "Regenerate parser sources from Ragel description" ON)
+
+if(RAGEL_REGEN_SRC)
+	find_package(RAGEL REQUIRED)
+	RAGEL_TARGET(rolefile_parser
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/ragel/parser.rl"
+		"${CMAKE_CURRENT_BINARY_DIR}/parser.c")
+endif()
 
 if(ENABLE_TESTS)
 	find_package(CMocka CONFIG REQUIRED)
