@@ -4,6 +4,9 @@
 #define LIBROLE_START_LINESIZE		200 /* start buffer size for /etc/role line */
 #define LIBROLE_MAX_NAME		    100 /* max user/group name length */
 
+#define LIBROLE_LOCKED			161 /* file is locked by another process */
+#define LIBROLE_SOURCE_UNAVAIL		160 /* group database is unavailable */
+#define LIBROLE_INVALID_ROLE_FILENAME	159
 #define LIBROLE_ERROR_OPENING_DIRECTORY	158
 #define LIBROLE_ERROR_PATH_TOO_LONG	157
 #define LIBROLE_NO_SUCH_GROUP		156
@@ -17,9 +20,9 @@
 #define LIBROLE_INCORRECT_VALUE     148
 #define LIBROLE_OK			0
 
-#define LIBROLE_CONFIG "/etc/role"
+#define LIBROLE_ROLE_EXTENSION ".role"
 
-#define LIBROLE_CONFIG_DIR "/etc/role.d"
+#define LIBROLE_MAX_SYSTEM_ROLES 256
 
 #endif
 

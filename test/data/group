@@ -1,0 +1,6 @@
+users:x:100:
+video:x:482:
+wheel:x:5:
+tftp:x:40:
+audio:x:50:
+

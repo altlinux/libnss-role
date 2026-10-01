@@ -1,5 +1,5 @@
 #ifndef LIBROLE_LOCK_FILE_H
-#define LIBROLE_LOCK_FILE
+#define LIBROLE_LOCK_FILE_H
 
 int librole_lock(const char *);
 

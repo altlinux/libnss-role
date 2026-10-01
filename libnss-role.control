@@ -1,0 +1,48 @@
+#!/bin/sh
+
+. /etc/control.d/functions
+
+CONFIG=/etc/nsswitch.conf
+
+new_summary "libnss-role is an NSS libc module that implements adding groups to groups for Linux"
+new_help enabled "Enable libnss-role module"
+new_help disabled "Disable libnss-role module"
+
+REQUEST="$*"
+
+case "$REQUEST" in
+	help|'help '*)
+		control_help "${REQUEST#help}"
+		;;
+	list)
+		control_list
+		;;
+	summary)
+		control_summary
+		;;
+	status)
+		str="$(grep -E '^\s*group:.*' $CONFIG)"
+		if [ -z "$str" ];then
+			echo 'unknown'
+		elif echo "$str" | grep -E -q '^\s*group(:.*\s|:)role(\s+.*|\s*)$'; then
+			echo 'enabled'
+		else
+			echo 'disabled'
+		fi
+		;;
+	enabled)
+		sed -i -e 's/^\s*\(group:\)role\s/\1 /' \
+		-e 's/^\s*\(group:.*\)\srole\s/\1 /' \
+		-e 's/^\s*\(group:.*\)\srole$/\1/' \
+		-e 's/^\s*\(group:.*\)\(\srole\)*/\1 role/' "$CONFIG"
+		;;
+	disabled)
+		sed -i -e 's/^\s*\(group:\)role\s\(.*\)/\1 \2/g' \
+		-e 's/^\s*\(group:.*\)\srole\s\(.*\)$/\1 \2/g' \
+		-e 's/^\s*\(group:.*\)\srole\s*$/\1/g' "$CONFIG"
+		;;
+	*)
+		echo "libnss-role: Invalid mode: $REQUEST"
+		exit 1
+		;;
+esac

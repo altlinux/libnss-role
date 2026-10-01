@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2008-2020 Etersoft
+ * Copyright (c) 2020 BaseALT
+ *
+ * NSS library for roles and privileges.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation, version 2.1
+ * of the License.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ * USA.
+ */
 #include <nss.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -8,6 +29,7 @@
 
 #include "role/parser.h"
 #include "role/fileop.h"
+#include "role/paths.h"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -16,11 +38,14 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
         long int limit, int *errnop)
 {
     enum nss_status ret = NSS_STATUS_SUCCESS;
-    pthread_mutex_lock(&mutex);
-
     struct librole_graph G = {0};
     int i, result;
     librole_group_collector col = {0}, ans = {0};
+
+    /* Groups of roles depend on groups of the user only */
+    (void) user;
+
+    pthread_mutex_lock(&mutex);
 
     result = librole_graph_init(&G);
     if (result != LIBROLE_OK) {
@@ -29,8 +54,10 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
         goto libnss_role_out;
     }
 
-    result = librole_reading(LIBROLE_CONFIG, &G);
-    if (result != LIBROLE_OK) {
+    result = librole_reading(librole_config_file(), &G);
+    /* Use roles which could be resolved if some group database
+     * (e.g. winbind during early boot) is unavailable */
+    if (result != LIBROLE_OK && result != LIBROLE_SOURCE_UNAVAIL) {
         if (result == LIBROLE_MEMORY_ERROR) {
             *errnop = ENOMEM;
             ret =  NSS_STATUS_NOTFOUND;
@@ -40,7 +67,7 @@ enum nss_status _nss_role_initgroups_dyn(char *user, gid_t main_group,
     }
 
     /* Don't do anything on errors and try to continue operating */
-    result = librole_get_directory_files(LIBROLE_CONFIG_DIR, &G);
+    result = librole_get_directory_files(librole_config_dir(), &G);
 
     result = librole_ver_init(&col);
     if (result != LIBROLE_OK) {

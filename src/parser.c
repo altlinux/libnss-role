@@ -1,27 +1,55 @@
+/*
+ * Copyright (c) 2008-2020 Etersoft
+ * Copyright (c) 2020 BaseALT
+ *
+ * NSS library for roles and privileges.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation, version 2.1
+ * of the License.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ * USA.
+ */
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+/* For PATH_MAX */
+#include <linux/limits.h>
+
 
 #include "role/parser.h"
-#include "role/pam_check.h"
-#include "role/lock_file.h"
 
-// TODO: separate read/write and graph
+/* TODO: separate read/write and graph */
 
 int librole_graph_add(struct librole_graph *G, struct librole_ver v)
 {
     if (G->size == G->capacity) {
-        G->capacity <<= 1;
-        G->gr = (struct librole_ver *) realloc(G->gr, sizeof(struct librole_ver) * G->capacity);
-        if (!G->gr)
-            return LIBROLE_MEMORY_ERROR;
+        int capacity = G->capacity ? G->capacity << 1 : 10;
+        struct librole_ver *gr;
+        int *used;
 
-        G->used = (int *) realloc(G->used, sizeof(int) * G->capacity);
-        if (!G->used) {
-            free(G->gr);
+        /* Keep G valid on failure: it is freed by the caller */
+        gr = (struct librole_ver *) realloc(G->gr, sizeof(struct librole_ver) * capacity);
+        if (!gr)
             return LIBROLE_MEMORY_ERROR;
-        }
+        G->gr = gr;
+
+        used = (int *) realloc(G->used, sizeof(int) * capacity);
+        if (!used)
+            return LIBROLE_MEMORY_ERROR;
+        memset(used + G->capacity, 0, sizeof(int) * (capacity - G->capacity));
+        G->used = used;
+        G->capacity = capacity;
     }
     G->gr[G->size++] = v;
     return LIBROLE_OK;
@@ -41,10 +69,14 @@ int librole_ver_add(struct librole_ver *v, gid_t g)
     /* This code will be executed on LIBROLE_NO_SUCH_GROUP from
      * librole_ver_find_gid or on any other result */
     if (v->size == v->capacity) {
-        v->capacity <<= 1;
-        v->list = (gid_t *) realloc(v->list, sizeof(gid_t) * v->capacity);
-        if (!v->list)
+        /* capacity is 0 after librole_ver_free() (librole_role_drop()) */
+        int capacity = v->capacity ? v->capacity << 1 : 10;
+        gid_t *list = (gid_t *) realloc(v->list, sizeof(gid_t) * capacity);
+
+        if (!list)
             return LIBROLE_MEMORY_ERROR;
+        v->list = list;
+        v->capacity = capacity;
     }
     v->list[v->size++] = g;
 
@@ -56,6 +88,7 @@ int librole_graph_init(struct librole_graph *G)
 {
     G->capacity = 10;
     G->size = 0;
+    G->used = NULL;
     G->gr = (struct librole_ver *) malloc(sizeof(struct librole_ver) * G->capacity);
     if (!G->gr)
         return LIBROLE_MEMORY_ERROR;
@@ -63,6 +96,8 @@ int librole_graph_init(struct librole_graph *G)
     G->used = (int *) malloc(sizeof(int) * G->capacity);
     if (!G->used) {
         free(G->gr);
+        G->gr = NULL;
+        G->size = 0;
         return LIBROLE_MEMORY_ERROR;
     }
     memset(G->used, 0, sizeof(int) * G->capacity);
@@ -110,7 +145,10 @@ int librole_ver_find_gid(struct librole_ver* v, gid_t g, int *idx)
 
 void librole_ver_free(struct librole_ver *v)
 {
+    if (!v)
+        return;
     free(v->list);
+    v->list = NULL;
     v->size = 0;
     v->capacity = 0;
 }
@@ -128,7 +166,7 @@ void librole_graph_free(struct librole_graph *G)
     G->capacity = 0;
 }
 
-// TODO: move to internal (nss)
+/* TODO: move to internal (nss) */
 int librole_realloc_groups(long int **size, gid_t ***groups, long int new_size)
 {
     gid_t *new_groups;
@@ -197,6 +235,12 @@ void drop_quotes(char **str)
     }
 }
 
+void skip_next_spaces(char **str)
+{
+    while ((*str)[0] == ' ' || (*str)[0] == '\t')
+        (*str)++;
+}
+
 int parse_line(char *line, struct librole_graph *G)
 {
     int result;
@@ -207,7 +251,9 @@ int parse_line(char *line, struct librole_graph *G)
     struct librole_ver * role = &default_role;
     int comment = 0;
     int role_exists = 0;
+    int source_unavail = 0;
     int gid_index = 0;
+    gid_t gr;
 
     /* skip blank line */
     if (!len)
@@ -222,6 +268,7 @@ int parse_line(char *line, struct librole_graph *G)
     if (comment && *last == '\0')
         goto libnss_role_parse_line_error;
 
+    skip_next_spaces(&last);
     drop_quotes(&last);
     result = librole_get_gid(last, &role->gid);
     if (result != LIBROLE_OK)
@@ -239,14 +286,18 @@ int parse_line(char *line, struct librole_graph *G)
         if (i >= len)
             break;
         last = line + i;
-        gid_t gr;
 
         comment = select_line_part(line, len, &last, &i, ',');
 
+        skip_next_spaces(&last);
         drop_quotes(&last);
         result = librole_get_gid(last, &gr);
         if (result == LIBROLE_NO_SUCH_GROUP)
             continue;
+        if (result == LIBROLE_SOURCE_UNAVAIL) {
+            source_unavail = 1;
+            continue;
+        }
         if (result != LIBROLE_OK)
             goto libnss_role_parse_line_error;
 
@@ -261,10 +312,14 @@ int parse_line(char *line, struct librole_graph *G)
             goto libnss_role_parse_line_error;
         }
     }
+    if (source_unavail)
+        result = LIBROLE_SOURCE_UNAVAIL;
     return result;
 
 libnss_role_parse_line_error:
-    free(role->list);
+    /* Lists of existing roles are owned by G and freed by librole_graph_free() */
+    if (!role_exists)
+        free(role->list);
     return result;
 }
 
@@ -284,6 +339,7 @@ int librole_reading(const char *s, struct librole_graph *G)
     unsigned long len = LIBROLE_START_LINESIZE;
     char *str = NULL;
     unsigned long id = 0;
+    int source_unavail = 0;
     int c;
 
     str = malloc(len * sizeof(char));
@@ -292,22 +348,35 @@ int librole_reading(const char *s, struct librole_graph *G)
 
     f = fopen(s, "r");
     if (!f) {
-        result = LIBROLE_IO_ERROR;
+        /* Missing file is an empty configuration */
+        if (errno != ENOENT)
+            result = LIBROLE_IO_ERROR;
         goto libnss_role_reading_out_free;
     }
     
     while(1) {
         c = fgetc(f);
-        if (c == EOF)
-            break;
-        if (c == '\n') {
+        if (c == EOF && ferror(f)) {
+            result = LIBROLE_IO_ERROR;
+            goto libnss_role_reading_out;
+        }
+        if (c == EOF || c == '\n') {
+            if (c == EOF && !id)
+                break;
             str[id] = '\0';
             result = parse_line(str, G);
-            if (result != LIBROLE_OK &&
+            /* Lines with unknown groups are skipped. Lines with groups from
+             * an unavailable database are skipped too, but the caller is
+             * told about it: the graph is incomplete. */
+            if (result == LIBROLE_SOURCE_UNAVAIL)
+                source_unavail = 1;
+            else if (result != LIBROLE_OK &&
                     result != LIBROLE_NO_SUCH_GROUP)
                 goto libnss_role_reading_out;
             id = 0;
             result = LIBROLE_OK;
+            if (c == EOF)
+                break;
             continue;
         }
         str[id++] = c;
@@ -317,13 +386,10 @@ int librole_reading(const char *s, struct librole_graph *G)
                 goto libnss_role_reading_out;
         }
     }
-    if (id) {
-        str[id] = '\0';
-        result = parse_line(str, G);
-        if (result != LIBROLE_OK)
-            goto libnss_role_reading_out;
-    }
-    
+
+    if (source_unavail)
+        result = LIBROLE_SOURCE_UNAVAIL;
+
 libnss_role_reading_out:
     fclose(f);
 libnss_role_reading_out_free:
@@ -354,88 +420,4 @@ int librole_dfs(struct librole_graph *G, gid_t v, librole_group_collector *col)
             return result;
     }
     return LIBROLE_OK;
-}
-
-/* delim: 0 - '', > 0 - ',' before, < 0 - ':' after */
-static int write_group(FILE *f, int gid, int delim, int numeric_flag)
-{
-    /* print ',' before if needed */
-    if (delim > 0 && fputc(',', f) < 0)
-        return LIBROLE_IO_ERROR;
-
-    if (numeric_flag) {
-        if (fprintf(f, "%u", gid) < 0)
-            return LIBROLE_IO_ERROR;
-    } else {
-        int result;
-        char gr_name[LIBROLE_MAX_NAME];
-        result = librole_get_group_name(gid, gr_name, LIBROLE_MAX_NAME);
-        if (result != LIBROLE_OK)
-            return result;
-        if (fprintf(f, "%s", gr_name) < 0)
-            return LIBROLE_IO_ERROR;
-    }
-
-    /* print ':' after if needed */
-    if (delim < 0 && fputc(':', f) < 0)
-        return LIBROLE_IO_ERROR;
-
-    return LIBROLE_OK;
-}
-
-// TODO: the same like in rolelst
-// TODO: write in a new file and atomically rename
-int librole_writing(const char *file, struct librole_graph *G, int numeric_flag)
-{
-    int i, j, result;
-    FILE *f = fopen(file, "w");
-    if (!f)
-        return LIBROLE_IO_ERROR;
-
-    for(i = 0; i < G->size; i++) {
-        if (!G->gr[i].size)
-            continue;
-
-        result = write_group(f, G->gr[i].gid, -1, numeric_flag);
-        if (result != LIBROLE_OK)
-            goto libnss_role_writing_exit;
-
-        for(j = 0; j < G->gr[i].size; j++) {
-            result = write_group(f, G->gr[i].list[j], j, numeric_flag);
-            if (result != LIBROLE_OK)
-                goto libnss_role_writing_exit;
-        }
-        if (fputc('\n', f) < 0)
-            goto libnss_role_writing_exit;
-    }
-
-    result = LIBROLE_OK;
-
-libnss_role_writing_exit:
-    fclose(f);
-    return result;
-}
-
-int librole_write(const char* pam_role, struct librole_graph *G)
-{
-    int result;
-    int pam_status;
-    pam_handle_t *pamh;
-
-    result = librole_pam_check(pamh, pam_role, &pam_status);
-    if (result != LIBROLE_OK)
-        return result;
-
-    result = librole_lock(LIBROLE_CONFIG);
-    if (result != LIBROLE_OK)
-        goto exit;
-
-    result = librole_writing(LIBROLE_CONFIG, G, 0);
-
-    librole_unlock(LIBROLE_CONFIG);
-
-// TODO: can we release immediately?
-exit:
-    librole_pam_release(pamh, pam_status);
-    return result;
 }

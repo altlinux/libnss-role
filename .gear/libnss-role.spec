@@ -5,33 +5,34 @@
 # Enable cmake RPATH for unit tests
 %global _cmake_skip_rpath %nil
 
+%def_enable test
+
 Name: libnss-role
-Version: 0.5.0
-Release: alt3
+Version: 0.6.0
+Release: alt1
 
 Summary: NSS API library and admin tools for roles and privilegies
 
 License: LGPLv2.1
-URL: https://github.com/altlinux/libnss-role
+URL: https://github.com/Etersoft/libnss-role
 Group: System/Libraries
 
 Packager: Vitaly Lipatov <lav@altlinux.ru>
 
-# https://github.com/altlinux/libnss-role.git
+# https://github.com/Etersoft/libnss-role.git
 Source: %name-%version.tar
-
-Requires(pre): chrooted >= 0.3.5-alt1 chrooted-resolv sed
-Requires(postun): chrooted >= 0.3.5-alt1 sed
 
 BuildRequires: glibc-devel
 BuildRequires: cmake
-BuildRequires: ctest
-BuildRequires: libcmocka
-BuildRequires: libcmocka-devel
-BuildRequires: libpam0
 BuildRequires: libpam0-devel
+BuildRequires: nss_wrapper
 
-Requires: libpam0
+%if_enabled test
+BuildRequires: ctest
+BuildRequires: libcmocka-devel
+%endif
+
+Requires: libpam0 chrooted >= 0.3.5-alt1 chrooted-resolv control
 
 %description
 NSS API library and admin tools for roles and privilegies.
@@ -50,38 +51,50 @@ NSS API library for roles and privilegies.
 
 %build
 %cmake \
+%if_enabled test
+	-DENABLE_TESTS=ON \
+%else
+	-DENABLE_TESTS=OFF \
+%endif
 	-DNSS_LIBDIR=/%_lib \
 	-DROLE_LIBDIR=%_libdir \
 	-DMANDIR=%_man8dir \
 	-DCMAKE_INSTALL_PREFIX:PATH=%_prefix
 %cmake_build
+%if_enabled test
+%cmake_build -t all_tests
+%endif
 
+%if_enabled test
 %check
-cd BUILD
-%make_build test
-
-./checkver %version
+%cmake_build -- all_tests
+%_cmake__builddir/checkver %version
+%endif
 
 %install
 %cmakeinstall_std
 mkdir -p %buildroot%_sysconfdir/role.d
 
-%post
-if [ "$1" = "1" ]; then
-    grep -q '^group:[[:blank:]]*\(.\+[[:blank:]]\+\)*role\($\|[[:blank:]]\)' \
-        %_sysconfdir/nsswitch.conf || \
-    sed -i.rpmorig -e 's/^\(group:.\+\)$/\1 role/g' \
-        %_sysconfdir/nsswitch.conf
-fi
-update_chrooted all
+# control support
+install -pD -m755 %name.control %buildroot%_controldir/%name
 
-%postun
-if [ "$1" = "0" ]; then
-    sed -i -e 's/^group:role/group:/g' \
-           -e 's/^\(group:\)\(.\+[[:blank:]]*\)*[[:blank:]]\+role\($\|[[:blank:]].*\)$/\1\2\3/g' \
-        %_sysconfdir/nsswitch.conf
+%post
+if [ $1 -eq 1 ]; then
+	control libnss-role enabled
+	update_chrooted all
 fi
-update_chrooted all
+
+%preun
+if [ $1 -eq 0 ]; then
+	control libnss-role disabled
+	update_chrooted all
+fi
+
+%triggerun -- libnss-role < 0.5.6-alt4
+%pre_control libnss-role
+
+%triggerpostun -- libnss-role < 0.5.6-alt4
+%post_control libnss-role
 
 %files
 %config(noreplace) %verify(not md5 size mtime) %_sysconfdir/role
@@ -92,13 +105,69 @@ update_chrooted all
 %_sbindir/roledel
 %_bindir/rolelst
 %_libdir/*.so.*
+%_man5dir/*
 %_man8dir/*
+%config %_controldir/%name
 
 %files devel
 %_libdir/*.so
 %_includedir/role/
 
 %changelog
+* Thu Oct 01 2026 Vitaly Lipatov <lav@altlinux.ru> 0.6.0-alt1
+- new version 0.6.0
+- fix double free in NSS module when winbind is not running yet (closes: #60776)
+- skip groups from unavailable group database (winbind) in NSS module,
+  don't rewrite role files with such groups in roleadd/roledel
+- treat missing /etc/role as empty configuration
+- roledel: show the file in /etc/role.d defining the role
+- fix memory errors: buffer overflow in librole_get_group_name(),
+  realloc() handling, long options, short role file names
+- fix /etc/role locking, replace role files atomically
+- add role(5) manpage, update documentation and help
+- extend unit tests, run them with ctest
+
+* Thu Sep 19 2024 Evgeny Sinelnikov <sin@altlinux.org> 0.5.6-alt4
+- Fix control support with various role module using.
+- Fix not standart setup of libnss-role during upgrade (closes #50704).
+
+* Fri Aug 16 2024 Evgeny Sinelnikov <sin@altlinux.org> 0.5.6-alt3
+- Fix disabling libnss-role by control during upgrade (closes #50704).
+
+* Tue Feb 06 2024 Vitaly Lipatov <lav@altlinux.ru> 0.5.6-alt2
+- Add support for --disable=test
+
+* Wed Feb 02 2022 Evgeny Sinelnikov <sin@altlinux.org> 0.5.6-alt1
+- Add libnss-role control facility
+
+* Fri Oct 08 2021 Evgeny Sinelnikov <sin@altlinux.org> 0.5.5-alt1
+- Add mutual exclusion for show system role (-S or --system) and
+  show role in additional file option (-f or --file) options.
+
+* Thu Sep 16 2021 Evgeny Sinelnikov <sin@altlinux.org> 0.5.4-alt2
+- Refusing to parse further with cmake_build macros for tests due
+  compatibility with Sisyphus
+
+* Tue Sep 14 2021 Evgeny Sinelnikov <sin@altlinux.org> 0.5.4-alt1
+- Muliple fixes and testing support
+- Add list of roles as additional arguments in rolelst
+
+* Thu Jul 08 2021 Evgeny Sinelnikov <sin@altlinux.org> 0.5.3-alt1
+- Fix for librole_write_dir
+- Clean build with C89 enforced
+- Add support of system roles management
+
+* Tue Jul 06 2021 Ivan Savin <svn17@altlinux.org> 0.5.2-alt1
+- Add the ability to remove roles and privileges from files in /etc/role.d/.
+- Add the ability to add roles and privileges to files in /etc/role.d/.
+
+* Tue Apr 27 2021 Arseny Maslennikov <arseny@altlinux.org> 0.5.1-alt1.1
+- NMU: spec: adapted to new cmake macros.
+
+* Wed Jul 15 2020 Evgeny Sinelnikov <sin@altlinux.org> 0.5.1-alt1
+- Validate that each used filename in the role directory ends with .role
+  extension. Not validated files skips.
+
 * Wed May 13 2020 Evgeny Sinelnikov <sin@altlinux.org> 0.5.0-alt3
 - Fix roleadd installation
 - Correct show of project version

@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2008-2020 Etersoft
+ * Copyright (c) 2020 BaseALT
+ *
+ * NSS library for roles and privileges.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation, version 2.1
+ * of the License.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ * USA.
+ */
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -18,8 +39,11 @@
 static int errno_to_result(int err)
 {
     switch (err) {
+        /* getgrnam_r() and friends return the errno of an NSS module
+         * which reported NSS_STATUS_UNAVAIL, e.g. ENOENT from winbind
+         * when winbindd is not running yet. */
         case ENOENT:
-            return ENOENT;
+            return LIBROLE_SOURCE_UNAVAIL;
         case ERANGE:
             return LIBROLE_OUT_OF_RANGE;
         case EMFILE:
@@ -36,10 +60,10 @@ static int errno_to_result(int err)
 static void *get_buffer(int const_name, size_t *actual_size)
 {
     void *buf;
-    size_t bufsize = sysconf(const_name);
-    if (bufsize == -1) {
-        bufsize = 16384;
-    }
+    long maxsize = sysconf(const_name);
+    /* -1 if there is no hard limit */
+    size_t bufsize = maxsize > 0 ? (size_t) maxsize : 16384;
+
     buf = malloc(bufsize);
     if (buf)
         *actual_size = bufsize;
@@ -58,7 +82,7 @@ int librole_realloc_buffer(void **buffer, size_t *size)
 #endif
     newbuffer = realloc(*buffer, newsize * sizeof(char));
     if (!newbuffer) {
-        free(buffer);
+        free(*buffer);
         *buffer = NULL;
         *size = 0;
         return LIBROLE_MEMORY_ERROR;
@@ -87,9 +111,9 @@ int librole_en_vector(void **buffer, size_t *capacity, size_t used, size_t elsiz
 
     newbuffer = realloc(*buffer, newsize * elsize);
     if (!newbuffer) {
-        //free(buffer);
-        //*buffer = NULL;
-        //*capacity = 0;
+        /* free(buffer);
+        *buffer = NULL;
+        *capacity = 0;*/
         return LIBROLE_MEMORY_ERROR;
     }
 
@@ -119,13 +143,13 @@ int librole_get_group_name(gid_t gid, char *ans, size_t ans_size)
     struct group grp, *grp_ptr;
     void *buffer;
     size_t bufsize;
-    int err, result;
+    int err, result, i;
 
     buffer = get_buffer(_SC_GETGR_R_SIZE_MAX, &bufsize);
     if (!buffer)
         return LIBROLE_MEMORY_ERROR;
 
-    for (int i = 0 ; i < BUFFERCOUNT ; i++) {
+    for (i = 0 ; i < BUFFERCOUNT ; i++) {
         err = getgrgid_r(gid, &grp, buffer, bufsize, &grp_ptr);
         if (err != ERANGE)
             break;
@@ -143,8 +167,12 @@ int librole_get_group_name(gid_t gid, char *ans, size_t ans_size)
         return LIBROLE_NO_SUCH_GROUP;
     }
     if (ans) {
-        strncpy(ans, grp.gr_name, ans_size);
-        ans[ans_size] = '\0';
+        /* Don't return a truncated name: it is a name of another group */
+        if (strlen(grp.gr_name) >= ans_size) {
+            free(buffer);
+            return LIBROLE_OUT_OF_RANGE;
+        }
+        strcpy(ans, grp.gr_name);
     }
 
     free(buffer);
@@ -157,13 +185,13 @@ static int get_gid_by_groupname(const char *gr_name, gid_t *gid)
     struct group grp, *grp_ptr;
     void *buffer;
     size_t bufsize;
-    int err, result;
+    int err, result, i;
 
     buffer = get_buffer(_SC_GETGR_R_SIZE_MAX, &bufsize);
     if (!buffer)
         return LIBROLE_MEMORY_ERROR;
 
-    for (int i = 0 ; i < BUFFERCOUNT ; i++) {
+    for (i = 0 ; i < BUFFERCOUNT ; i++) {
         err = getgrnam_r(gr_name, &grp, buffer, bufsize, &grp_ptr);
         if (err != ERANGE)
             break;
@@ -231,13 +259,13 @@ int librole_get_user_name(uid_t uid, char *user_name, size_t user_name_size)
     void *buffer;
     struct passwd pwd;
     struct passwd* pwd_ptr;
-    int err, result;
+    int err, result, i;
 
     buffer = get_buffer(_SC_GETPW_R_SIZE_MAX, &bufsize);
     if (!buffer)
     return LIBROLE_MEMORY_ERROR;
 
-    for (int i = 0 ; i < BUFFERCOUNT ; i++) {
+    for (i = 0 ; i < BUFFERCOUNT ; i++) {
         err = getpwuid_r(uid, &pwd, buffer, bufsize, &pwd_ptr);
         if (err != ERANGE)
             break;
@@ -257,8 +285,11 @@ int librole_get_user_name(uid_t uid, char *user_name, size_t user_name_size)
     }
 
     if (user_name) {
-        strncpy(user_name, pwd_ptr->pw_name, user_name_size);
-        user_name[user_name_size - 1 ] = '\0';
+        if (strlen(pwd_ptr->pw_name) >= user_name_size) {
+            free(buffer);
+            return LIBROLE_OUT_OF_RANGE;
+        }
+        strcpy(user_name, pwd_ptr->pw_name);
     }
 
     free(buffer);
@@ -299,6 +330,12 @@ void librole_print_error(int result)
             break;
         case LIBROLE_INCORRECT_VALUE:
             errtext = "Incorrect value";
+            break;
+        case LIBROLE_SOURCE_UNAVAIL:
+            errtext = "Group database is unavailable";
+            break;
+        case LIBROLE_LOCKED:
+            errtext = "File is locked by another process";
             break;
         case LIBROLE_OK:
             errtext = "No error";

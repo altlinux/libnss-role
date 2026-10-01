@@ -1,0 +1,70 @@
+.TH ROLE "5" "October 2026" "libnss-role" ""
+.SH NAME
+role \- roles and privileges configuration for libnss-role
+.SH SYNOPSIS
+\fI/etc/role\fR
+.br
+\fI/etc/role.d/*.role\fR
+.SH DESCRIPTION
+The \fBrole\fR NSS module adds groups to groups: a user who is a member of
+a role group also gets all privilege groups of the role.
+Roles may include other roles, they are resolved recursively.
+.PP
+Each line of the file has the form
+.PP
+.RS
+\fIROLE\fR\fB:\fR\fIGROUP\fR[\fB,\fR\fIGROUP\fR...]
+.RE
+.PP
+where \fIROLE\fR is a role group and \fIGROUP\fRs are privilege groups (or
+other roles) which members of \fIROLE\fR get.
+.IP \(bu 2
+Groups are specified by name or by numeric GID. Group names may contain
+spaces (e.g. \fBdomain users\fR) and may be enclosed in double quotes.
+Spaces around names are ignored.
+.IP \(bu 2
+\fB#\fR starts a comment till the end of the line. Empty lines are ignored.
+.IP \(bu 2
+Several lines for the same role are merged.
+.IP \(bu 2
+Groups which don't exist are skipped: a line with a missing role is
+ignored, a missing privilege is removed from the role.
+.PP
+\fBroleadd\fR(8) and \fBroledel\fR(8) write group names, \fBrolelst\fR(8)
+shows the configuration.
+.SH FILES
+.TP
+.I /etc/role
+the main configuration file.
+.TP
+.I /etc/role.d/*.role
+additional configuration files, e.g. installed by packages. They are read
+in alphabetical order after \fI/etc/role\fR and merged with it. Only regular
+files with \fB.role\fR extension are read. A file
+\fI/etc/role.d/ROLE.role\fR which describes the role \fIROLE\fR is a system
+role file, see \fB\-S\fR option of the utilities.
+.SH EXAMPLE
+Suppose that user \fBpupkin\fR is a member of the group \fBusers\fR, and
+.PP
+.RS
+.nf
+# /etc/role
+users: audio, video, cdwriter
+admins: users, wheel
+.fi
+.RE
+.PP
+Then \fBpupkin\fR also gets the groups \fBaudio\fR, \fBvideo\fR and
+\fBcdwriter\fR. Members of \fBadmins\fR get all these groups and \fBwheel\fR.
+.PP
+To enable the module, add \fBrole\fR to the \fBgroup\fR line of
+\fI/etc/nsswitch.conf\fR:
+.PP
+.RS
+group: files role
+.RE
+.SH "SEE ALSO"
+.BR roleadd (8),
+.BR roledel (8),
+.BR rolelst (8),
+.BR nsswitch.conf (5)

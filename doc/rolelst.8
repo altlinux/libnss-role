@@ -1,18 +1,30 @@
-.TH ROLELST "8" "March 2020" "libnss-role" ""
+.TH ROLELST "8" "October 2026" "libnss-role" ""
 .SH NAME
 rolelst \- Print list of roles and priviledge
 .SH SYNOPSIS
 .B rolelst
-[\fIROLES*\fR]\fR
+[\fI-n\fR] [\fI-V\fR] [\fI-f FILE.role\fR | \fI-S\fR [\fIROLE\fR]] [\fIROLE\fR...]
 .SH DESCRIPTION
 rolelst is utility prints current list of roles and privileges. The
 data is read from \fI/etc/role\fR file and starting from 0.5.0 version
 it is also \fI/etc/role.d\fR directory supported to allow installing
-separate role configurations.
+separate role configurations, see \fBrole\fR(5).
+.PP
+If \fIROLE\fRs are given, only these roles are printed.
 .SH OPTIONS
 .TP
 \fB\-h\fR [ \fB\-\-help\fR ]
 produce help message
+.TP
+\fB\-n\fR [ \fB\-\-numeric\fR ]
+print GIDs instead of group names
+.TP
+\fB\-f\fR [ \fB\-\-file\fR=\fIFILE.role\fR ]
+print roles from additional file \fI/etc/role.d/FILE.role\fR only
+.TP
+\fB\-S\fR [ \fB\-\-system\fR[=\fIROLE\fR] ]
+print system roles, i.e. roles described in \fI/etc/role.d/ROLE.role\fR
+files, or only the system role \fIROLE\fR
 .TP
 \fB\-v\fR [ \fB\-\-version\fR ]
 print the version of rolelst being used
@@ -20,7 +32,10 @@ print the version of rolelst being used
 \fB\-V\fR [ \fB\-\-verbose\fR ]
 print data read from only \fI/etc/role\fR and after merge with
 \fI/etc/role.d\fR separately.
+.SH FILES
+\fI/etc/role\fR, \fI/etc/role.d/*.role\fR
 .SH "SEE ALSO"
 .PP
+.BR role (5),
 .BR roleadd (8),
-.BR roledel (8),
+.BR roledel (8)

@@ -1,19 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
 project(libnss-role
 	LANGUAGES C
-	VERSION 0.5.0
+	VERSION 0.6.0
 	DESCRIPTION "NSS library to work with roles")
-set(C_STANDARD 89)
+set(C_STANDARD 90)
+set(CMAKE_C_STANDARD 90)
 set(C_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
-add_compile_options(-pedantic -g3)
+add_compile_options(-Wall -Wextra -pedantic -g3)
+# POSIX and X/Open functions (getgrnam_r, scandir, strdup, snprintf...)
+# are not declared in strict C90 mode without feature test macros
+add_definitions(-D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700)
 
 option(ENABLE_TESTS "Enable unit tests for libnss-role" ON)
-option(NSS_LIBDIR "Destination directory for libnss_role" "/lib64")
-option(ROLE_LIBDIR "Destination directory for librole" "/usr/lib64")
-option(MANDIR "Manpage install directory" "/usr/share/man/man8")
+include(GNUInstallDirs)
+set(NSS_LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}" CACHE PATH "Destination directory for libnss_role")
+set(ROLE_LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}" CACHE PATH "Destination directory for librole")
+set(MANDIR "${CMAKE_INSTALL_FULL_MANDIR}/man8" CACHE PATH "Manpage install directory")
 
 if(ENABLE_TESTS)
 	find_package(CMocka CONFIG REQUIRED)
@@ -28,6 +33,7 @@ set(NSS_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lock_file.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/pam_check.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c
+	${CMAKE_CURRENT_SOURCE_DIR}/src/paths.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/fileop.c)
 
 set(MANPAGES
@@ -37,12 +43,14 @@ set(MANPAGES
 
 set(HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/fileop.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/fileop_rw.h
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/glob.h
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/lock_file.h
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/pam_check.h
+	${CMAKE_CURRENT_SOURCE_DIR}/include/role/paths.h
 	${CMAKE_CURRENT_SOURCE_DIR}/include/role/parser.h)
 
-set(LIBROLE_VERSION 1.0.0)
+set(LIBROLE_VERSION 1.1.0)
 set(LIBROLE_SOVERSION 1)
 set(LIBNSSROLE_VERSION 2.0.0)
 set(LIBNSSROLE_SOVERSION 2)
@@ -54,10 +62,11 @@ include_directories(BEFORE
 	${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_library(role SHARED
+	${CMAKE_CURRENT_SOURCE_DIR}/src/fileop_rw.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/graph.c
 	${NSS_SOURCES})
 
-target_link_libraries(role pam pam_misc)
+target_link_libraries(role PRIVATE pam pam_misc)
 
 set_target_properties(role PROPERTIES
 	VERSION ${LIBROLE_VERSION}
@@ -76,17 +85,17 @@ set_target_properties(nss_role PROPERTIES
 add_executable(roleadd
 	${CMAKE_CURRENT_SOURCE_DIR}/src/roleadd.c)
 
-target_link_libraries(roleadd role pam pam_misc)
+target_link_libraries(roleadd role)
 
 add_executable(roledel
 	${CMAKE_CURRENT_SOURCE_DIR}/src/roledel.c)
 
-target_link_libraries(roledel role pam pam_misc)
+target_link_libraries(roledel role)
 
 add_executable(rolelst
 	${CMAKE_CURRENT_SOURCE_DIR}/src/rolelst.c)
 
-target_link_libraries(rolelst role pam pam_misc)
+target_link_libraries(rolelst role)
 
 add_executable(checkver ${CMAKE_CURRENT_SOURCE_DIR}/src/checkver.c)
 
@@ -104,6 +113,10 @@ install(FILES ${HEADERS}
 	DESTINATION include/role)
 install(FILES ${MANPAGES}
 	DESTINATION ${MANDIR})
+# role(5) goes to man5 next to MANDIR (man8)
+get_filename_component(MANBASEDIR ${MANDIR} DIRECTORY)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/role.5
+	DESTINATION ${MANBASEDIR}/man5)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role
 	DESTINATION /etc)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/role.pamd

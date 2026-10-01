@@ -1,13 +1,16 @@
-.TH ROLEADD "8" "March 2020" "libnss-role" ""
+.TH ROLEADD "8" "October 2026" "libnss-role" ""
 .SH NAME
 roleadd \- Add new roles and add privileges for role
 .SH SYNOPSIS
 .B roleadd
-[\fI-m\fR] [\fI-s\fR] \fIROLE \fR[\fIGROUP*\fR]\fR
+[\fI-m\fR] [\fI-s\fR] [\fI-f FILE.role\fR | \fI-S\fR] \fIROLE \fR[\fIGROUP\fR...]
 .SH DESCRIPTION
 roleadd is utility allows to add privilege groups to role groups.
 This mean that all users at role group includes to all
 privileges groups which added to modified role.
+.PP
+By default \fI/etc/role\fR is changed. Groups are specified by name or by
+numeric GID, see \fBrole\fR(5).
 .SH OPTIONS
 .TP
 \fB\-h\fR [ \fB\-\-help\fR ]
@@ -19,9 +22,18 @@ set role with privileges
 \fB\-m\fR [ \fB\-\-skip\-missing\-groups\fR ]
 skipping for missed privilegies instead error
 .TP
+\fB\-f\fR [ \fB\-\-file\fR=\fIFILE.role\fR ]
+change role in additional file \fI/etc/role.d/FILE.role\fR
+.TP
+\fB\-S\fR [ \fB\-\-system\fR ]
+change system role in additional file \fI/etc/role.d/ROLE.role\fR
+.TP
 \fB\-v\fR [ \fB\-\-version\fR ]
 print the version of roleadd being used
+.SH FILES
+\fI/etc/role\fR, \fI/etc/role.d/*.role\fR
 .SH "SEE ALSO"
 .PP
+.BR role (5),
 .BR roledel (8),
-.BR rolelst (8),
+.BR rolelst (8)
